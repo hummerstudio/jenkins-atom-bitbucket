@@ -1,0 +1,395 @@
+{
+  "atomCode": "bitbucket",
+  "name": "Bitbucket build status",
+  "version": "1.0.0",
+  "description": "Posts a build status to the commit of a Bitbucket Server / Data Center or Bitbucket Cloud repository (pick `flavor`), reads it back, and on Server can also approve / withdraw / decline or comment on the pull request — each with a read-back. Merges the former bitbucket-status and bitbucket-cloud-status atoms.",
+  "execution": {
+    "packagePath": "bitbucket.jar",
+    "language": "java",
+    "target": "$atom_java_path -cp bitbucket.jar com.jenkinschina.atom.sdk.AtomRunner"
+  },
+  "input": {
+    "flavor": {
+      "label": "部署形态",
+      "type": "select",
+      "default": "server",
+      "description": "server = Bitbucket Server / Data Center（/rest/build-status/1.0，五字段报文，HTTP access token 或用户名+密码，可选 PR 动作）；cloud = Bitbucket Cloud（api.bitbucket.org/2.0，OAuth consumer 或 accessToken）。两者是两套 API，选哪个表单就只显示哪个要的参数；不填按 server 处理。",
+      "options": [
+        {
+          "label": "Bitbucket Server / Data Center（server）",
+          "value": "server"
+        },
+        {
+          "label": "Bitbucket Cloud（cloud）",
+          "value": "cloud"
+        }
+      ]
+    },
+    "serverUrl": {
+      "label": "Bitbucket 地址",
+      "type": "vuex-input",
+      "default": "",
+      "description": "Bitbucket Server / Data Center 根地址，例如 https://bitbucket.example.com。",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "server"
+          }
+        ]
+      }
+    },
+    "apiUrl": {
+      "label": "API 根地址（cloud，默认 https://api.bitbucket.org）",
+      "type": "vuex-input",
+      "default": "",
+      "description": "只在测试或走代理时改。",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "cloud"
+          }
+        ]
+      }
+    },
+    "tokenUrl": {
+      "label": "token 端点（cloud，默认 https://bitbucket.org/site/oauth2/access_token）",
+      "type": "vuex-input",
+      "default": "",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "cloud"
+          }
+        ]
+      }
+    },
+    "workspace": {
+      "label": "Bitbucket 工作区 / owner（cloud，留空从 GIT_URL 推断）",
+      "type": "vuex-input",
+      "default": "",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "cloud"
+          }
+        ]
+      }
+    },
+    "repoSlug": {
+      "label": "仓库 slug（server 做 PR 动作时要；cloud 留空从 GIT_URL 推断）",
+      "type": "vuex-input",
+      "default": ""
+    },
+    "sha": {
+      "label": "提交 sha（留空取 GIT_COMMIT）",
+      "type": "vuex-input",
+      "default": ""
+    },
+    "state": {
+      "label": "状态（留空按 BUILD_STATUS 推断；cloud 仍为空则 INPROGRESS）",
+      "type": "vuex-input",
+      "default": ""
+    },
+    "key": {
+      "label": "构建标识 key（server 留空用 JOB_NAME；cloud 留空 md5(JOB_NAME#BUILD_NUMBER)）",
+      "type": "vuex-input",
+      "default": ""
+    },
+    "name": {
+      "label": "显示名（留空用 JOB_NAME #BUILD_NUMBER；cloud 的 overrideLatestBuild 下用 JOB_NAME）",
+      "type": "vuex-input",
+      "default": ""
+    },
+    "description": {
+      "label": "描述（server 留空自动生成；cloud 留空不发该字段）",
+      "type": "vuex-input",
+      "default": ""
+    },
+    "buildUrl": {
+      "label": "构建链接（留空取 BUILD_URL；cloud 必填）",
+      "type": "vuex-input",
+      "default": ""
+    },
+    "username": {
+      "label": "用户名（server，Basic 认证时用）",
+      "type": "vuex-input",
+      "default": "",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "server"
+          }
+        ]
+      }
+    },
+    "password": {
+      "label": "个人访问令牌或密码（server，凭据 id，Secret text）",
+      "type": "vuex-input",
+      "default": "",
+      "isSensitive": true,
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "server"
+          }
+        ]
+      }
+    },
+    "token": {
+      "label": "HTTP 访问令牌（server，凭据 id，Secret text；留空则用用户名+密码）",
+      "type": "vuex-input",
+      "default": "",
+      "isSensitive": true,
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "server"
+          }
+        ]
+      }
+    },
+    "consumerKey": {
+      "label": "OAuth consumer key（cloud）",
+      "type": "vuex-input",
+      "default": "",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "cloud"
+          }
+        ]
+      }
+    },
+    "consumerSecret": {
+      "label": "OAuth consumer secret（cloud，凭据，Secret text）",
+      "type": "vuex-input",
+      "default": "",
+      "isSensitive": true,
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "cloud"
+          }
+        ]
+      }
+    },
+    "accessToken": {
+      "label": "已有 access token（cloud，凭据，Secret text；给了就跳过 client_credentials 换 token）",
+      "type": "vuex-input",
+      "default": "",
+      "isSensitive": true,
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "cloud"
+          }
+        ]
+      }
+    },
+    "considerUnstableAsSuccess": {
+      "label": "把 UNSTABLE 报成 SUCCESSFUL（server）",
+      "type": "boolean",
+      "default": "false",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "server"
+          }
+        ]
+      }
+    },
+    "notifyAborted": {
+      "label": "中止/未构建的构建也上报（server，已 FAILED）",
+      "type": "boolean",
+      "default": "false",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "server"
+          }
+        ]
+      }
+    },
+    "includeBuildNumberInKey": {
+      "label": "key 里带上构建号（server）",
+      "type": "boolean",
+      "default": "false",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "server"
+          }
+        ]
+      }
+    },
+    "overrideLatestBuild": {
+      "label": "只保留该 job 最新一条状态（cloud，key=md5(JOB_NAME)、name=JOB_NAME）",
+      "type": "boolean",
+      "default": "false",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "cloud"
+          }
+        ]
+      }
+    },
+    "verifyAfterWrite": {
+      "label": "写完回读校验",
+      "type": "boolean",
+      "default": "true"
+    },
+    "pullRequestUrl": {
+      "label": "Pull request 页面地址（server，可选）",
+      "type": "vuex-input",
+      "default": "",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "server"
+          }
+        ]
+      }
+    },
+    "projectKey": {
+      "label": "项目 key（server，PR 动作时要）",
+      "type": "vuex-input",
+      "default": "",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "server"
+          }
+        ]
+      }
+    },
+    "pullRequestId": {
+      "label": "PR 编号（server，留空取 CHANGE_ID）",
+      "type": "vuex-input",
+      "default": "",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "server"
+          }
+        ]
+      }
+    },
+    "prAction": {
+      "label": "PR 动作（server）：none / approve（绿批红撤）/ decline（红关）",
+      "type": "vuex-input",
+      "default": "none",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "server"
+          }
+        ]
+      }
+    },
+    "comment": {
+      "label": "PR 评论（server，支持 ${VAR}；留空不发）",
+      "type": "vuex-input",
+      "default": "",
+      "rely": {
+        "operation": "AND",
+        "expression": [
+          {
+            "key": "flavor",
+            "value": "server"
+          }
+        ]
+      }
+    }
+  },
+  "output": {
+    "status": {
+      "type": "string",
+      "description": "HTTP 状态码"
+    },
+    "state": {
+      "type": "string",
+      "description": "上报的状态（SUCCESSFUL / FAILED / INPROGRESS；server 跳过时为 SKIPPED）"
+    },
+    "key": {
+      "type": "string",
+      "description": "实际发送的 key"
+    },
+    "apiUrl": {
+      "type": "string",
+      "description": "实际调用的地址"
+    },
+    "verified": {
+      "type": "string",
+      "description": "回读到的状态，未回读为 not-checked"
+    },
+    "prAction": {
+      "type": "string",
+      "description": "server：实际执行的 PR 动作（none / approve / withdraw-approve / decline）"
+    },
+    "prVerified": {
+      "type": "string",
+      "description": "server：回读到的 PR 状态（approved / withdrawn / declined / not-checked）"
+    },
+    "commentId": {
+      "type": "string",
+      "description": "server：回读到的评论 id"
+    },
+    "repo": {
+      "type": "string",
+      "description": "cloud：owner/repo"
+    },
+    "tokenSource": {
+      "type": "string",
+      "description": "cloud：access-token 或 client-credentials"
+    }
+  },
+  "x-jenkins": {
+    "protocol": "jenkins-1",
+    "requires": {
+      "runner": ">=0.4.0"
+    },
+    "secrets": {
+      "token": "",
+      "password": "",
+      "consumerSecret": "",
+      "accessToken": ""
+    }
+  }
+}
